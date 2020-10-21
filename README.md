@@ -1,6 +1,6 @@
 # DockerSecurity_Cheatsheet
 
-CGroups Examples
+# CGroups Examples
 
 CGroups control how much resources a process can use. By adding restrictions, you can deliver a guaranteed Quality of Service to applications by ensuring they have enough space available.   
 ```
@@ -18,7 +18,7 @@ docker stats --no-stream - The memory usage limit of the containers can be liste
 
 --cpu-shares parameter defines a share between 0-768. - The cpu-shares option allows you to specify the relative share of cpu a container will receive when there is contention for cpu.
   
-Namespace Examples
+# Namespace Examples
 
 Namespaces control what a process can see and access.
 ```
@@ -30,7 +30,7 @@ Cgroup      CLONE_NEWCGROUP   Cgroup root directory
   User        CLONE_NEWUSER     User and group IDs
   UTS         CLONE_NEWUTS      Hostname and NIS domain name
  ``` 
-CoreOS Clair:
+# CoreOS Clair:
 
 Clair is an Open Source project from CoreOS, designed to scan Docker Images for Security Vulnerabilities.
 
@@ -64,7 +64,7 @@ docker run -it \
  CLAIR_ADDR=http://localhost:6060 CLAIR_OUTPUT=Low CLAIR_THRESHOLD=10 \
   klar quay.io/coreos/clair:v2.0.1   - Using klar, we can now point it at images and see what vulnerabilities they contain, for example quay.io/coreos/clair:v2.0.1.
   
-SecComp:
+# SecComp:
 SecComp defines which system calls should and should not be allowed to be executed by a container.
 
 docker run --rm -it --security-opt seccomp:<policy file.json> <image> - Runs the image with Seccomp policy(Secure computing),restrict system calls.
@@ -72,7 +72,7 @@ docker run --rm -it --security-opt seccomp:<policy file.json> <image> - Runs the
 Restrict additional Privilage:
 docker run --security-opt=no-new-privileges <image>  -> prevents the container from Additional privilage.
   
-User namespaces:
+# User namespaces:
 ```
 Edit /etc/docker/daemon.json. Assuming the file was previously empty, the following entry enables userns-remap using user and group called testuser. 
 
@@ -81,7 +81,7 @@ You can also start the docker service with  - dockerd --userns-remap="testuser:t
 --userns=host - We can use this flag to disable user namespace.
 ```
 
-AppArmor security profiles:
+# AppArmor security profiles:
 ```
 apparmor_parser -r -W /path/to/your_profile - To load a new profile into AppArmor for use with containers.
 
@@ -89,3 +89,42 @@ docker run --rm -it --security-opt apparmor=your_profile hello-world - To run ap
 
 aa-status  - To check the apparmor status
 ```
+# Hashicorp Vault
+
+Consul is a tool for service discovery and configuration.
+
+docker create -v /config --name config busybox - creating container to store the consul config.
+
+docker run -d --name consul -p 8500:8500 consul:v0.6.4 agent -dev -client=0.0.0.0 - Launching a consul agent.
+
+docker cp vault.hcl config:/config/ - vault.hcl contains the config details,copying this file to the container config folder.
+
+alias vault='docker exec -it vault-dev vault "$@"' - Creating an alias which will proxy commands to vault to the container.
+
+vault init -address=${VAULT_ADDR} > keys.txt - Initialize the vault and storing the data in the a file named keys.txt.The output includes our master key and token.
+
+```
+When a Vault server is started, it starts in a sealed state.Unsealing is the process of constructing the master key necessary to read the decryption key to decrypt the data, allowing read access to the Vault.
+```
+
+vault unseal -address=${VAULT_ADDR} $(grep 'Key 1:' keys.txt | awk '{print $NF}') - unsealing with key 1.In production, These keys should be stored separately and securely.
+
+vault status -address=${VAULT_ADDR} - To check the status of the vault(sealed or unsealed).
+
+export VAULT_TOKEN=$(grep 'Initial Root Token:' keys.txt | awk '{print substr($NF, 1, length($NF)-1)}') - Tokens are used to communicate with the Vault. When the vault was initialised, a root token was outputted,It will be used in API calls.
+ 
+vault auth -address=${VAULT_ADDR} ${VAULT_TOKEN} - We can use the token to login into the vault.
+
+vault write -address=${VAULT_ADDR} secret/api-key value=12345678 - Storing the key.
+
+vault read -address=${VAULT_ADDR} secret/api-key - Reading the key.
+nohup docker-volume-libsecret --addr $VAULT_ADDR --backend vault --store-opt token=$VAULT_TOKEN</dev/null &> libsecretlogs & - When launching LibSecret we define the Vault address and an access token.
+ 
+docker run -ti --rm --volume-driver libsecret -v secret/app-1/:/secrets <base image> - Launching the container with volume driver,Our container never has access to Vault or access token. Everything is managed via the Volume Driver.
+
+
+
+
+
+
+

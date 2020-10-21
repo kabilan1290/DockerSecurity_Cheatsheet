@@ -1,6 +1,7 @@
 # DockerSecurity_Cheatsheet
 
 CGroups Examples
+
 CGroups control how much resources a process can use. By adding restrictions, you can deliver a guaranteed Quality of Service to applications by ensuring they have enough space available.   
 
 --cpu-shares
@@ -18,6 +19,7 @@ docker stats --no-stream - The memory usage limit of the containers can be liste
 --cpu-shares parameter defines a share between 0-768. - The cpu-shares option allows you to specify the relative share of cpu a container will receive when there is contention for cpu.
   
 Namespace Examples
+
 Namespaces control what a process can see and access.
 
 Cgroup      CLONE_NEWCGROUP   Cgroup root directory
